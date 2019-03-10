@@ -4,16 +4,41 @@ var { buildSchema } = require('graphql');
 
 // Constructing a schema using GraphQL schema language
 var schema = buildSchema(`
+  type RandomDie {
+    numSides: Int!
+    rollOnce: Int!
+    roll(numRolls: Int!): [Int]
+  }
+
   type Query {
     quoteOfTheDay: String
     random: Float!
-    rollDice(numDice: Int!, numSides: Int): [Int]
+    getDie(numSides: Int): RandomDie
   }
 `);
 // Three scalar types: String, Int, Float, Boolean and ID
 // By default, all types can be null, ! makes them non nullable
 
+class RandomDie {
+  constructor(numSides) {
+    this.numSides = numSides;
+  }
+
+  rollOnce() {
+    return 1 + Math.floor(Math.random() * this.numSides);
+  }
+
+  roll({ numRolls }) {
+    var output = [];
+    for (var i = 0; i < numRolls; i++) {
+      output.push(this.rollOnce());
+    }
+    return output;
+  }
+}
+
 // Root provides a resolver fn for each API endpoint
+// For object types it provides the top-level API endpoints
 var root = {
   quoteOfTheDay: () => {
     return Math.random() < 0.5 ? 'With great power comes great responsibility' : 'The early bird gets the worm';
@@ -22,12 +47,15 @@ var root = {
     return Math.random();
   },
   // When a resolver takes args, they are passed as one object - easy to destructure
-  rollDice: function ({ numDice, numSides }) {
-    var output = [];
-    for (var i = 0; i < numDice; i++) {
-      output.push(1 + Math.floor(Math.random() * numSides || 6));
-    }
-    return output;
+  // rollDice: function ({ numDice, numSides }) {
+  //   var output = [];
+  //   for (var i = 0; i < numDice; i++) {
+  //     output.push(1 + Math.floor(Math.random() * numSides || 6));
+  //   }
+  //   return output;
+  // }
+  getDie: function ({ numSides }) {
+    return new RandomDie(numSides || 6);
   }
 };
 
