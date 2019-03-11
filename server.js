@@ -10,10 +10,27 @@ var schema = buildSchema(`
     roll(numRolls: Int!): [Int]
   }
 
+  input MessageInput {
+    content: String
+    author: String
+  }
+
+  type Message {
+    id: ID!
+    content: String
+    author: String
+  }
+
   type Query {
     quoteOfTheDay: String
     random: Float!
     getDie(numSides: Int): RandomDie
+    getMessage(id: ID!): Message
+  }
+
+  type Mutation {
+    createMessage(input: MessageInput): Message
+    updateMessage(id: ID!, input: MessageInput): Message
   }
 `);
 // Three scalar types: String, Int, Float, Boolean and ID
@@ -37,8 +54,18 @@ class RandomDie {
   }
 }
 
+class Message {
+  constructor(id, { content, author }) {
+    this.id = id;
+    this.content = content;
+    this.author = author;
+  }
+}
+
 // Root provides a resolver fn for each API endpoint
 // For object types it provides the top-level API endpoints
+// Database for db mutation
+var fakeDatabase = {};
 var root = {
   quoteOfTheDay: () => {
     return Math.random() < 0.5 ? 'With great power comes great responsibility' : 'The early bird gets the worm';
@@ -56,7 +83,28 @@ var root = {
   // }
   getDie: function ({ numSides }) {
     return new RandomDie(numSides || 6);
-  }
+  },
+  getMessage: function ({ id }) {
+    if (!fakeDatabase[id]) {
+      throw new Error('no message exists with id ' + id);
+    }
+    return new Message(id, fakeDatabase[id]);
+  },
+  createMessage: function ({ input }) {
+    // Create random id for the fake db
+    var id = require('crypto').randomBytes(10).toString('hex');
+
+    fakeDatabase[id] = input;
+    return new Message(id, input);
+  },
+  updateMessage: function ({ id, input }) {
+    if (!fakeDatabase[id]) {
+      throw new Error('no message exists with id ' + id);
+    }
+    // Replaces all data
+    fakeDatabase[id] = input;
+    return new Message(id, input);
+  },
 };
 
 // This is where express comes in
@@ -94,3 +142,32 @@ fetch('/graphql', {
   .then(r => r.json())
   .then(data => console.log('data returned:', data));
 */
+
+// // This is some client logic for injecting variables into a mutation
+var author = 'arielbk';
+var content = 'hope is a good thing';
+var query = `mutation CreateMessage($input: MessageInput) {
+  createMessage(input: $input) {
+    id
+  }
+}`;
+
+fetch('/graphql', {
+  method: 'POST',
+  // had a bug here while learning... header_s_
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+  body: JSON.stringify({
+    query,
+    variables: {
+      input: {
+        author,
+        content,
+      }
+    }
+  })
+})
+  .then(res => res.json())
+  .then(data => console.log('Data returned: ', data));
