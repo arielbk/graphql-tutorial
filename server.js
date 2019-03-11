@@ -22,6 +22,7 @@ var schema = buildSchema(`
   }
 
   type Query {
+    ip: String
     quoteOfTheDay: String
     random: Float!
     getDie(numSides: Int): RandomDie
@@ -35,6 +36,11 @@ var schema = buildSchema(`
 `);
 // Three scalar types: String, Int, Float, Boolean and ID
 // By default, all types can be null, ! makes them non nullable
+
+function loggingMiddleware(req, res, next) {
+  console.log('ip:', req.ip);
+  next();
+}
 
 class RandomDie {
   constructor(numSides) {
@@ -67,6 +73,9 @@ class Message {
 // Database for db mutation
 var fakeDatabase = {};
 var root = {
+  ip: function (args, request) {
+    return request.ip;
+  },
   quoteOfTheDay: () => {
     return Math.random() < 0.5 ? 'With great power comes great responsibility' : 'The early bird gets the worm';
   },
@@ -109,6 +118,7 @@ var root = {
 
 // This is where express comes in
 var app = express();
+app.use(loggingMiddleware);
 app.use('/graphql', graphqlHTTP({
   schema: schema,
   rootValue: root,
@@ -144,30 +154,30 @@ fetch('/graphql', {
 */
 
 // // This is some client logic for injecting variables into a mutation
-var author = 'arielbk';
-var content = 'hope is a good thing';
-var query = `mutation CreateMessage($input: MessageInput) {
-  createMessage(input: $input) {
-    id
-  }
-}`;
+// var author = 'arielbk';
+// var content = 'hope is a good thing';
+// var query = `mutation CreateMessage($input: MessageInput) {
+//   createMessage(input: $input) {
+//     id
+//   }
+// }`;
 
-fetch('/graphql', {
-  method: 'POST',
-  // had a bug here while learning... header_s_
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-  body: JSON.stringify({
-    query,
-    variables: {
-      input: {
-        author,
-        content,
-      }
-    }
-  })
-})
-  .then(res => res.json())
-  .then(data => console.log('Data returned: ', data));
+// fetch('/graphql', {
+//   method: 'POST',
+//   // had a bug here while learning... header_s_
+//   headers: {
+//     'Content-Type': 'application/json',
+//     'Accept': 'application/json',
+//   },
+//   body: JSON.stringify({
+//     query,
+//     variables: {
+//       input: {
+//         author,
+//         content,
+//       }
+//     }
+//   })
+// })
+//   .then(res => res.json())
+//   .then(data => console.log('Data returned: ', data));
